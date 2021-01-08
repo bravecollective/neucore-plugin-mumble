@@ -40,7 +40,7 @@ class Service implements ServiceInterface
 
         $pdo = $this->dbConnect();
         if ($pdo === null) {
-            return [];
+            throw new Exception();
         }
 
         $characterIdsOwnerHashes = [];
@@ -158,7 +158,7 @@ class Service implements ServiceInterface
         $stmt->bindValue(':corporation_name', $character->corporationName);
         $stmt->bindValue(':alliance_id', $character->allianceId);
         $stmt->bindValue(':alliance_name', $character->allianceName);
-        $stmt->bindValue(':groups', $groups);
+        $stmt->bindValue(':groups', $this->groupNames($groups));
         $stmt->bindValue(':updated_at', time());
         $stmt->bindValue(
             ':mumble_fullname',
@@ -287,17 +287,7 @@ class Service implements ServiceInterface
 
     private function groupsToTags(): array
     {
-        if (!defined('NEUCORE_PLUGIN')) {
-            define('NEUCORE_PLUGIN', 1);
-        }
-        if (!defined('GUEST')) {
-            define('GUEST', 23);
-        }
-
-        /* @var array $cfg_groups_to_tags */
         /** @noinspection PhpIncludeInspection */
-        include $_ENV['NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE'];
-
-        return $cfg_groups_to_tags;
+        return include $_ENV['NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE'];
     }
 }
