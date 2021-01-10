@@ -1,5 +1,15 @@
 # neucore-plugin-mumble
 
+## Requirements
+
+- A [Neucore](https://github.com/bravecollective/neucore) installation.
+
+See https://github.com/bravecollective/mumble-sso for the authentication script that is used by Mumble.
+
+## Install
+
+- Create the database tables by importing create.sql.
+
 The plugin needs the following environment variables:
 - NEUCORE_PLUGIN_MUMBLE_DB_DSN=mysql:dbname=brave-mumble-sso;host=127.0.0.1
 - NEUCORE_PLUGIN_MUMBLE_DB_USERNAME=username
@@ -7,8 +17,6 @@ The plugin needs the following environment variables:
 - NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE=/path/to/config.php
 
 The file config.php is based on config.php.dist.
-
-See also https://github.com/bravecollective/mumble-sso
 
 Install for development:
 ```shell
