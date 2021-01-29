@@ -265,7 +265,7 @@ class Service implements ServiceInterface
         string $groups,
         string $corporationTicker = null
     ): string {
-        $appendix = $corporationTicker ? " [$corporationTicker]'" : '';
+        $appendix = $corporationTicker ? " [$corporationTicker]" : '';
         $groupsArray = explode(',', $groups);
         foreach ($this->groupsToTags() as $group => $assignedTag) {
             if (in_array($group, $groupsArray)) {
