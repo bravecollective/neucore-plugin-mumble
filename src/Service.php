@@ -86,6 +86,10 @@ class Service implements ServiceInterface
         string $emailAddress,
         array $allCharacterIds
     ): ServiceAccountData {
+        if (empty($character->name)) {
+            throw new Exception();
+        }
+
         $pdo = $this->dbConnect();
         if ($pdo === null) {
             throw new Exception();
@@ -109,8 +113,8 @@ class Service implements ServiceInterface
         $groupNames = $this->groupNames($groups);
         $stmt->bindValue(':character_id', $character->id);
         $stmt->bindValue(':character_name', $character->name);
-        $stmt->bindValue(':corporation_id', $character->corporationId);
-        $stmt->bindValue(':corporation_name', $character->corporationName);
+        $stmt->bindValue(':corporation_id', (int)$character->corporationId);
+        $stmt->bindValue(':corporation_name', (string)$character->corporationName);
         $stmt->bindValue(':alliance_id', $character->allianceId);
         $stmt->bindValue(':alliance_name', $character->allianceName);
         $stmt->bindValue(':mumble_username', $mumbleUsername);
@@ -118,7 +122,7 @@ class Service implements ServiceInterface
         $stmt->bindValue(':groups', $groupNames);
         $stmt->bindValue(':created_at', $created);
         $stmt->bindValue(':updated_at', $created);
-        $stmt->bindValue(':owner_hash', $character->ownerHash);
+        $stmt->bindValue(':owner_hash', (string)$character->ownerHash);
         $stmt->bindValue(
             ':mumble_fullname',
             $this->generateMumbleFullName($character->name, $groupNames, $character->corporationTicker)
@@ -135,10 +139,6 @@ class Service implements ServiceInterface
 
     public function updateAccount(CoreCharacter $character, array $groups): void
     {
-        if (empty($character->name)) {
-            throw new Exception();
-        }
-
         $pdo = $this->dbConnect();
         if ($pdo === null) {
             throw new Exception();
@@ -147,7 +147,7 @@ class Service implements ServiceInterface
         // add ticker
         $this->addTicker($pdo, $character);
 
-        // There are some accounts with an empty Mumble username, fix that here
+        // There are some accounts with an empty Mumble username, update it if empty, but do not change it if not.
         $stmtSelect = $pdo->prepare("SELECT mumble_username FROM user WHERE character_id = :id");
         try {
             $stmtSelect->execute([':id' => $character->id]);
@@ -159,31 +159,46 @@ class Service implements ServiceInterface
         if (isset($userNameResult[0]) && !empty($userNameResult[0]['mumble_username'])) {
             $mumbleUsername = $userNameResult[0]['mumble_username'];
         } else {
-            $mumbleUsername = $this->toMumbleName($character->name);
+            $mumbleUsername = $this->toMumbleName((string)$character->name);
+            // the username may still be empty here
         }
+        $updateUserNameSqlPart = empty($mumbleUsername) ? '' : 'mumble_username = :mumble_username,';
+
+        // Character name and Mumble full name - $character->name can be null!
+        $mumbleFullName = $this->generateMumbleFullName(
+            (string)$character->name,
+            $this->groupNames($groups),
+            $character->corporationTicker
+        );
+        $updateFullNameSqlPart = empty($mumbleFullName) ? '' : 'mumble_fullname = :mumble_fullname,';
+        $updateCharNameSqlPart = empty($character->name) ? '' : 'character_name = :character_name,';
 
         // update user
         $stmt = $pdo->prepare(
-            'UPDATE user 
-            SET character_name = :character_name, corporation_id = :corporation_id, 
-                corporation_name = :corporation_name, alliance_id = :alliance_id, 
-                alliance_name = :alliance_name, `groups` = :groups, updated_at = :updated_at, 
-                mumble_username = :mumble_username, mumble_fullname = :mumble_fullname 
-            WHERE character_id = :character_id'
+            "UPDATE user
+            SET `groups` = :groups, $updateCharNameSqlPart
+                corporation_id = :corporation_id, corporation_name = :corporation_name,
+                alliance_id = :alliance_id, alliance_name = :alliance_name,
+                $updateUserNameSqlPart $updateFullNameSqlPart
+                updated_at = :updated_at
+            WHERE character_id = :character_id"
         );
         $stmt->bindValue(':character_id', $character->id);
-        $stmt->bindValue(':character_name', $character->name);
-        $stmt->bindValue(':corporation_id', $character->corporationId);
-        $stmt->bindValue(':corporation_name', $character->corporationName);
+        if (!empty($character->name)) {
+            $stmt->bindValue(':character_name', $character->name);
+        }
+        $stmt->bindValue(':corporation_id', (int)$character->corporationId);
+        $stmt->bindValue(':corporation_name', (string)$character->corporationName);
         $stmt->bindValue(':alliance_id', $character->allianceId);
         $stmt->bindValue(':alliance_name', $character->allianceName);
         $stmt->bindValue(':groups', $this->groupNames($groups));
         $stmt->bindValue(':updated_at', time());
-        $stmt->bindValue(':mumble_username', $mumbleUsername);
-        $stmt->bindValue(
-            ':mumble_fullname',
-            $this->generateMumbleFullName($character->name, $this->groupNames($groups), $character->corporationTicker)
-        );
+        if (!empty($mumbleUsername)) {
+            $stmt->bindValue(':mumble_username', $mumbleUsername);
+        }
+        if (!empty($mumbleFullName)) {
+            $stmt->bindValue(':mumble_fullname', $mumbleFullName);
+        }
         try {
             $stmt->execute();
         } catch(\Exception $e) {
@@ -210,6 +225,26 @@ class Service implements ServiceInterface
         }
 
         return $newPassword;
+    }
+
+    public function getAllAccounts(): array
+    {
+        $pdo = $this->dbConnect();
+        if ($pdo === null) {
+            throw new Exception();
+        }
+
+        $stmt = $pdo->prepare("SELECT character_id FROM user ORDER BY updated_at");
+        try {
+            $stmt->execute();
+        } catch (PDOException $e) {
+            $this->logger->error($e->getMessage(), ['exception' => $e]);
+            throw new Exception();
+        }
+
+        return array_map(function (array $row) {
+            return (int)$row['character_id'];
+        }, $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
     private function updateOwner(PDO $pdo, int $characterId, string $newOwnerHash): ?string
