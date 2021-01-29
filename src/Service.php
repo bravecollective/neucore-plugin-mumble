@@ -95,7 +95,7 @@ class Service implements ServiceInterface
         $this->addTicker($pdo, $character);
 
         // add user
-        $mumbleUsername = strtolower(preg_replace("/[^A-Za-z0-9\-]/", '_', $character->name));
+        $mumbleUsername = $this->toMumbleName($character->name);
         $mumblePassword = $this->randomString(10);
         $stmt = $pdo->prepare(
             'INSERT INTO user (character_id, character_name, corporation_id, corporation_name, 
@@ -135,6 +135,10 @@ class Service implements ServiceInterface
 
     public function updateAccount(CoreCharacter $character, array $groups): void
     {
+        if (empty($character->name)) {
+            throw new Exception();
+        }
+
         $pdo = $this->dbConnect();
         if ($pdo === null) {
             throw new Exception();
@@ -143,13 +147,28 @@ class Service implements ServiceInterface
         // add ticker
         $this->addTicker($pdo, $character);
 
+        // There are some accounts with an empty Mumble username, fix that here
+        $stmtSelect = $pdo->prepare("SELECT mumble_username FROM user WHERE character_id = :id");
+        try {
+            $stmtSelect->execute([':id' => $character->id]);
+        } catch (PDOException $e) {
+            $this->logger->error($e->getMessage(), ['exception' => $e]);
+            throw new Exception();
+        }
+        $userNameResult = $stmtSelect->fetchAll(PDO::FETCH_ASSOC);
+        if (isset($userNameResult[0]) && !empty($userNameResult[0]['mumble_username'])) {
+            $mumbleUsername = $userNameResult[0]['mumble_username'];
+        } else {
+            $mumbleUsername = $this->toMumbleName($character->name);
+        }
+
         // update user
         $stmt = $pdo->prepare(
             'UPDATE user 
             SET character_name = :character_name, corporation_id = :corporation_id, 
                 corporation_name = :corporation_name, alliance_id = :alliance_id, 
                 alliance_name = :alliance_name, `groups` = :groups, updated_at = :updated_at, 
-                mumble_fullname = :mumble_fullname 
+                mumble_username = :mumble_username, mumble_fullname = :mumble_fullname 
             WHERE character_id = :character_id'
         );
         $stmt->bindValue(':character_id', $character->id);
@@ -160,6 +179,7 @@ class Service implements ServiceInterface
         $stmt->bindValue(':alliance_name', $character->allianceName);
         $stmt->bindValue(':groups', $this->groupNames($groups));
         $stmt->bindValue(':updated_at', time());
+        $stmt->bindValue(':mumble_username', $mumbleUsername);
         $stmt->bindValue(
             ':mumble_fullname',
             $this->generateMumbleFullName($character->name, $this->groupNames($groups), $character->corporationTicker)
@@ -233,6 +253,11 @@ class Service implements ServiceInterface
         return implode(',', array_map(function (CoreGroup $group) {
             return $group->name;
         }, $groups));
+    }
+
+    private function toMumbleName(string $characterName): string
+    {
+        return strtolower(preg_replace("/[^A-Za-z0-9\-]/", '_', $characterName));
     }
 
     private function generateMumbleFullName(
