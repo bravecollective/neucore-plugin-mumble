@@ -262,12 +262,15 @@ class Service implements ServiceInterface
         return $password;
     }
 
-    private function addTicker(PDO $pdo, CoreCharacter $character)
+    private function addTicker(PDO $pdo, CoreCharacter $character): void
     {
         foreach ([
              'corporation' => [$character->corporationId, $character->corporationTicker],
              'alliance' => [$character->allianceId, $character->allianceTicker]
          ] as $type => $ticker) {
+            if (empty($ticker[0]) || empty($ticker[1])) {
+                continue;
+            }
             $stmt = $pdo->prepare(
                 'INSERT INTO ticker (filter, text) 
                 VALUES (:filter, :text) 
