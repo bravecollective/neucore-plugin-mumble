@@ -21,6 +21,16 @@ class Service implements ServiceInterface
      */
     private $logger;
 
+    /**
+     * @var PDO|null
+     */
+    private $pdo;
+
+    /**
+     * @var array|null
+     */
+    private $groupsToTags;
+
     public function __construct(LoggerInterface $logger)
     {
         $this->logger = $logger;
@@ -144,6 +154,8 @@ class Service implements ServiceInterface
             throw new Exception();
         }
 
+        $groupNames = $this->groupNames($groups);
+
         // add ticker
         $this->addTicker($pdo, $character);
 
@@ -167,7 +179,7 @@ class Service implements ServiceInterface
         // Character name and Mumble full name - $character->name can be null!
         $mumbleFullName = $this->generateMumbleFullName(
             (string)$character->name,
-            $this->groupNames($groups),
+            $groupNames,
             $character->corporationTicker
         );
         $updateFullNameSqlPart = empty($mumbleFullName) ? '' : 'mumble_fullname = :mumble_fullname,';
@@ -191,7 +203,7 @@ class Service implements ServiceInterface
         $stmt->bindValue(':corporation_name', (string)$character->corporationName);
         $stmt->bindValue(':alliance_id', $character->allianceId);
         $stmt->bindValue(':alliance_name', $character->allianceName);
-        $stmt->bindValue(':groups', $this->groupNames($groups));
+        $stmt->bindValue(':groups', $groupNames);
         $stmt->bindValue(':updated_at', time());
         if (!empty($mumbleUsername)) {
             $stmt->bindValue(':mumble_username', $mumbleUsername);
@@ -332,25 +344,31 @@ class Service implements ServiceInterface
 
     private function dbConnect(): ?PDO
     {
-        try {
-            $pdo = new PDO(
-                $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_DSN'],
-                $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_USERNAME'],
-                $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_PASSWORD']
-            );
-        } catch (PDOException $e) {
-            $this->logger->error($e->getMessage(), ['exception' => $e]);
-            return null;
+        if ($this->pdo === null) {
+            try {
+                $this->pdo = new PDO(
+                    $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_DSN'],
+                    $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_USERNAME'],
+                    $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_PASSWORD']
+                );
+            } catch (PDOException $e) {
+                $this->logger->error($e->getMessage(), ['exception' => $e]);
+                return null;
+            }
+
+            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
 
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        return $pdo;
+        return $this->pdo;
     }
 
     private function groupsToTags(): array
     {
-        /** @noinspection PhpIncludeInspection */
-        return include $_ENV['NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE'];
+        if (!is_array($this->groupsToTags)) {
+            /** @noinspection PhpIncludeInspection */
+            $this->groupsToTags = include $_ENV['NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE'];
+        }
+
+        return $this->groupsToTags;
     }
 }
