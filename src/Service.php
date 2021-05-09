@@ -48,10 +48,7 @@ class Service implements ServiceInterface
             return [];
         }
 
-        $pdo = $this->dbConnect();
-        if ($pdo === null) {
-            throw new Exception();
-        }
+        $this->dbConnect();
 
         $characterIdsOwnerHashes = [];
         foreach ($characters as $character) {
@@ -59,7 +56,7 @@ class Service implements ServiceInterface
         }
 
         $placeholders = implode(',', array_fill(0, count($characterIdsOwnerHashes), '?'));
-        $stmt = $pdo->prepare(
+        $stmt = $this->pdo->prepare(
             "SELECT character_id, mumble_username, mumble_password, owner_hash
             FROM user
             WHERE character_id IN ($placeholders)"
@@ -76,7 +73,7 @@ class Service implements ServiceInterface
             $characterId = (int)$row['character_id'];
             $password = $row['mumble_password'];
             if ($row['owner_hash'] !== $characterIdsOwnerHashes[$characterId]) {
-                $password = $this->updateOwner($pdo, $characterId, $characterIdsOwnerHashes[$characterId]);
+                $password = $this->updateOwner($characterId, $characterIdsOwnerHashes[$characterId]);
             }
             $result[] = new ServiceAccountData($characterId, $row['mumble_username'], $password);
         }
@@ -87,7 +84,6 @@ class Service implements ServiceInterface
     /**
      * @param CoreGroup[] $groups
      * @param int[] $allCharacterIds
-     * @return ServiceAccountData
      * @throws Exception
      */
     public function register(
@@ -100,18 +96,15 @@ class Service implements ServiceInterface
             throw new Exception();
         }
 
-        $pdo = $this->dbConnect();
-        if ($pdo === null) {
-            throw new Exception();
-        }
+        $this->dbConnect();
 
         // add ticker
-        $this->addTicker($pdo, $character);
+        $this->addTicker($character);
 
         // add user
         $mumbleUsername = $this->toMumbleName($character->name);
-        $mumblePassword = $this->randomString(10);
-        $stmt = $pdo->prepare(
+        $mumblePassword = $this->randomString();
+        $stmt = $this->pdo->prepare(
             'INSERT INTO user (character_id, character_name, corporation_id, corporation_name, 
                   alliance_id, alliance_name, mumble_username, mumble_password, `groups`, created_at, 
                   updated_at, owner_hash, mumble_fullname) 
@@ -149,18 +142,15 @@ class Service implements ServiceInterface
 
     public function updateAccount(CoreCharacter $character, array $groups): void
     {
-        $pdo = $this->dbConnect();
-        if ($pdo === null) {
-            throw new Exception();
-        }
+        $this->dbConnect();
 
         $groupNames = $this->groupNames($groups);
 
         // add ticker
-        $this->addTicker($pdo, $character);
+        $this->addTicker($character);
 
         // There are some accounts with an empty Mumble username, update it if empty, but do not change it if not.
-        $stmtSelect = $pdo->prepare("SELECT mumble_username FROM user WHERE character_id = :id");
+        $stmtSelect = $this->pdo->prepare("SELECT mumble_username FROM user WHERE character_id = :id");
         try {
             $stmtSelect->execute([':id' => $character->id]);
         } catch (PDOException $e) {
@@ -186,7 +176,7 @@ class Service implements ServiceInterface
         $updateCharNameSqlPart = empty($character->name) ? '' : 'character_name = :character_name,';
 
         // update user
-        $stmt = $pdo->prepare(
+        $stmt = $this->pdo->prepare(
             "UPDATE user
             SET `groups` = :groups, $updateCharNameSqlPart
                 corporation_id = :corporation_id, corporation_name = :corporation_name,
@@ -221,14 +211,13 @@ class Service implements ServiceInterface
 
     public function resetPassword(int $characterId): string
     {
-        $pdo = $this->dbConnect();
-        if ($pdo === null) {
-            throw new Exception();
-        }
+        $this->dbConnect();
 
-        $newPassword = $this->randomString(10);
+        $newPassword = $this->randomString();
 
-        $stmt = $pdo->prepare('UPDATE user SET mumble_password = :mumble_password WHERE character_id = :character_id');
+        $stmt = $this->pdo->prepare(
+            'UPDATE user SET mumble_password = :mumble_password WHERE character_id = :character_id'
+        );
         try {
             $stmt->execute([':character_id' => $characterId, ':mumble_password' => $newPassword]);
         } catch (PDOException $e) {
@@ -241,12 +230,9 @@ class Service implements ServiceInterface
 
     public function getAllAccounts(): array
     {
-        $pdo = $this->dbConnect();
-        if ($pdo === null) {
-            throw new Exception();
-        }
+        $this->dbConnect();
 
-        $stmt = $pdo->prepare("SELECT character_id FROM user ORDER BY updated_at");
+        $stmt = $this->pdo->prepare("SELECT character_id FROM user ORDER BY updated_at");
         try {
             $stmt->execute();
         } catch (PDOException $e) {
@@ -259,11 +245,13 @@ class Service implements ServiceInterface
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
     }
 
-    private function updateOwner(PDO $pdo, int $characterId, string $newOwnerHash): ?string
+    private function updateOwner(int $characterId, string $newOwnerHash): ?string
     {
-        $password = $this->randomString(10);
+        $password = $this->randomString();
 
-        $stmt = $pdo->prepare('UPDATE user SET owner_hash = :hash, mumble_password = :pw WHERE character_id = :id');
+        $stmt = $this->pdo->prepare(
+            'UPDATE user SET owner_hash = :hash, mumble_password = :pw WHERE character_id = :id'
+        );
         try {
             $stmt->execute([':id' => $characterId, ':pw' => $password, ':hash' => $newOwnerHash]);
         } catch (PDOException $e) {
@@ -274,7 +262,7 @@ class Service implements ServiceInterface
         return $password;
     }
 
-    private function addTicker(PDO $pdo, CoreCharacter $character): void
+    private function addTicker(CoreCharacter $character): void
     {
         foreach ([
              'corporation' => [$character->corporationId, $character->corporationTicker],
@@ -283,7 +271,7 @@ class Service implements ServiceInterface
             if (empty($ticker[0]) || empty($ticker[1])) {
                 continue;
             }
-            $stmt = $pdo->prepare(
+            $stmt = $this->pdo->prepare(
                 'INSERT INTO ticker (filter, text) 
                 VALUES (:filter, :text) 
                 ON DUPLICATE KEY UPDATE text = :text'
@@ -305,9 +293,33 @@ class Service implements ServiceInterface
         }, $groups));
     }
 
+    /**
+     * @throws Exception
+     */
     private function toMumbleName(string $characterName): string
     {
-        return strtolower(preg_replace("/[^A-Za-z0-9\-]/", '_', $characterName));
+        $name = strtolower(preg_replace("/[^A-Za-z0-9\-]/", '_', $characterName));
+        $nameToCheck = $name;
+
+        $unique = false;
+        $count = 0;
+        while (!$unique && $count < 100) {
+            $stmt = $this->pdo->prepare('SELECT 1 FROM user WHERE mumble_username = ?');
+            try {
+                $stmt->execute([$nameToCheck]);
+            } catch (PDOException $e) {
+                $this->logger->error($e->getMessage(), ['exception' => $e]);
+                throw new Exception();
+            }
+            if ($stmt->rowCount() === 0) {
+                $unique = true;
+            } else {
+                $count ++;
+                $nameToCheck = "{$name}_$count";
+            }
+        }
+
+        return $nameToCheck;
     }
 
     private function generateMumbleFullName(
@@ -327,12 +339,12 @@ class Service implements ServiceInterface
         return $characterName . $appendix;
     }
 
-    private function randomString(int $length): string
+    private function randomString(): string
     {
         $characters = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789";
         $max = mb_strlen($characters) - 1;
         $pass = '';
-        for ($i = 0; $i < $length; $i++) {
+        for ($i = 0; $i < 10; $i++) {
             try {
                 $pass .= $characters[random_int(0, $max)];
             } catch (\Exception $e) {
@@ -342,7 +354,10 @@ class Service implements ServiceInterface
         return $pass;
     }
 
-    private function dbConnect(): ?PDO
+    /**
+     * @throws Exception
+     */
+    private function dbConnect(): void
     {
         if ($this->pdo === null) {
             try {
@@ -353,13 +368,15 @@ class Service implements ServiceInterface
                 );
             } catch (PDOException $e) {
                 $this->logger->error($e->getMessage(), ['exception' => $e]);
-                return null;
+                return;
             }
 
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         }
 
-        return $this->pdo;
+        if ($this->pdo === null) {
+            throw new Exception();
+        }
     }
 
     private function groupsToTags(): array
