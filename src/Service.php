@@ -331,7 +331,11 @@ class Service implements ServiceInterface
         $groupsArray = explode(',', $groups);
         foreach ($this->groupsToTags() as $group => $assignedTag) {
             if (in_array($group, $groupsArray)) {
-                $appendix = " ($assignedTag)";
+                if ($assignedTag === 'CEO') {
+                    $appendix .= " ($assignedTag)";
+                } else {
+                    $appendix = " ($assignedTag)";
+                }
                 // first one wins
                 break;
             }
