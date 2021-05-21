@@ -371,15 +371,10 @@ class Service implements ServiceInterface
                     $_ENV['NEUCORE_PLUGIN_MUMBLE_DB_PASSWORD']
                 );
             } catch (PDOException $e) {
-                $this->logger->error($e->getMessage(), ['exception' => $e]);
-                return;
+                $this->logger->error($e->getMessage() . ' at ' . __FILE__ . ':' . __LINE__);
+                throw new Exception();
             }
-
             $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        }
-
-        if ($this->pdo === null) {
-            throw new Exception();
         }
     }
 
