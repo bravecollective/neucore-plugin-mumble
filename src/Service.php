@@ -327,10 +327,19 @@ class Service implements ServiceInterface
         string $groups,
         string $corporationTicker = null
     ): string {
-        $appendix = $corporationTicker ? " [$corporationTicker]" : '';
         $groupsArray = explode(',', $groups);
+
+        $pronoun = '';
+        $pronouns = ['He/Him', 'She/Her', 'They/Them'];
         foreach ($this->groupsToTags() as $group => $assignedTag) {
-            if (in_array($group, $groupsArray)) {
+            if (in_array($group, $groupsArray) && in_array($assignedTag, $pronouns)) {
+                $pronoun = " ($assignedTag)";
+            }
+        }
+
+        $appendix = $corporationTicker ? " [$corporationTicker]" : '';
+        foreach ($this->groupsToTags() as $group => $assignedTag) {
+            if (in_array($group, $groupsArray) && !in_array($assignedTag, $pronouns)) {
                 if ($assignedTag === 'CEO') {
                     $appendix .= " ($assignedTag)";
                 } else {
@@ -340,7 +349,8 @@ class Service implements ServiceInterface
                 break;
             }
         }
-        return $characterName . $appendix;
+
+        return $characterName . $pronoun . $appendix;
     }
 
     private function randomString(): string
