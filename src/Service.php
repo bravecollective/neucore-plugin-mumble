@@ -330,7 +330,7 @@ class Service implements ServiceInterface
         $groupsArray = explode(',', $groups);
 
         $pronoun = '';
-        $pronouns = ['He/Him', 'She/Her', 'They/Them'];
+        $pronouns = ['He/Him', 'She/Her', 'They/Them', 'He/They', 'She/They'];
         foreach ($this->groupsToTags() as $group => $assignedTag) {
             if (in_array($group, $groupsArray) && in_array($assignedTag, $pronouns)) {
                 $pronoun = " ($assignedTag)";
