@@ -31,7 +31,7 @@ class Service implements ServiceInterface
      */
     private $groupsToTags;
 
-    public function __construct(LoggerInterface $logger)
+    public function __construct(LoggerInterface $logger, string $configurationData)
     {
         $this->logger = $logger;
     }
@@ -391,7 +391,6 @@ class Service implements ServiceInterface
     private function groupsToTags(): array
     {
         if (!is_array($this->groupsToTags)) {
-            /** @noinspection PhpIncludeInspection */
             $this->groupsToTags = include $_ENV['NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE'];
         }
 
