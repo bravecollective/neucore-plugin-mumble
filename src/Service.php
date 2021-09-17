@@ -8,9 +8,12 @@ use Neucore\Plugin\CoreCharacter;
 use Neucore\Plugin\CoreGroup;
 use Neucore\Plugin\Exception;
 use Neucore\Plugin\ServiceAccountData;
+use Neucore\Plugin\ServiceConfiguration;
 use Neucore\Plugin\ServiceInterface;
 use PDO;
 use PDOException;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Log\LoggerInterface;
 
 /** @noinspection PhpUnused */
@@ -31,18 +34,18 @@ class Service implements ServiceInterface
      */
     private $groupsToTags;
 
-    public function __construct(LoggerInterface $logger, string $configurationData)
+    /** @noinspection PhpUnusedParameterInspection */
+    public function __construct(LoggerInterface $logger, ServiceConfiguration $serviceConfiguration)
     {
         $this->logger = $logger;
     }
 
     /**
      * @param CoreCharacter[] $characters
-     * @param CoreGroup[] $groups
      * @return ServiceAccountData[]
      * @throws Exception
      */
-    public function getAccounts(array $characters, array $groups): array
+    public function getAccounts(array $characters): array
     {
         if (count($characters) === 0) {
             return [];
@@ -140,7 +143,7 @@ class Service implements ServiceInterface
         return new ServiceAccountData($character->id, $mumbleUsername, $mumblePassword);
     }
 
-    public function updateAccount(CoreCharacter $character, array $groups): void
+    public function updateAccount(CoreCharacter $character, array $groups, ?CoreCharacter $mainCharacter): void
     {
         $this->dbConnect();
 
@@ -209,6 +212,11 @@ class Service implements ServiceInterface
         }
     }
 
+    public function updatePlayerAccount(CoreCharacter $mainCharacter, array $groups): void
+    {
+        throw new Exception();
+    }
+
     public function resetPassword(int $characterId): string
     {
         $this->dbConnect();
@@ -243,6 +251,11 @@ class Service implements ServiceInterface
         return array_map(function (array $row) {
             return (int)$row['character_id'];
         }, $stmt->fetchAll(PDO::FETCH_ASSOC));
+    }
+
+    public function getAllPlayerAccounts(): array
+    {
+        return [];
     }
 
     private function updateOwner(int $characterId, string $newOwnerHash): ?string
@@ -395,5 +408,17 @@ class Service implements ServiceInterface
         }
 
         return $this->groupsToTags;
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function request(
+        CoreCharacter $coreCharacter,
+        string $name,
+        ServerRequestInterface $request,
+        ResponseInterface $response
+    ): ResponseInterface {
+        throw new Exception();
     }
 }
