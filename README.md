@@ -14,9 +14,13 @@ The plugin needs the following environment variables:
 - NEUCORE_PLUGIN_MUMBLE_DB_DSN=mysql:dbname=brave-mumble-sso;host=127.0.0.1
 - NEUCORE_PLUGIN_MUMBLE_DB_USERNAME=username
 - NEUCORE_PLUGIN_MUMBLE_DB_PASSWORD=password
-- NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE=/path/to/config.php
 
-The file config.php is based on config.php.dist.
+Create a new service on Neucore for this plugin, add the "groups to tags" configuration to the "Configuration Data"
+text area, example:
+```
+alliance.diplo: Diplo
+alliance.mil.fc.full: Full FC
+```
 
 Install for development:
 ```shell

@@ -25,6 +25,11 @@ class Service implements ServiceInterface
     private $logger;
 
     /**
+     * @var string
+     */
+    private $configurationData;
+
+    /**
      * @var PDO|null
      */
     private $pdo;
@@ -34,10 +39,10 @@ class Service implements ServiceInterface
      */
     private $groupsToTags;
 
-    /** @noinspection PhpUnusedParameterInspection */
     public function __construct(LoggerInterface $logger, ServiceConfiguration $serviceConfiguration)
     {
         $this->logger = $logger;
+        $this->configurationData = $serviceConfiguration->configurationData;
     }
 
     /**
@@ -403,8 +408,21 @@ class Service implements ServiceInterface
 
     private function groupsToTags(): array
     {
-        if (!is_array($this->groupsToTags)) {
-            $this->groupsToTags = include $_ENV['NEUCORE_PLUGIN_MUMBLE_CONFIG_FILE'];
+        if (is_array($this->groupsToTags)) {
+            return $this->groupsToTags;
+        }
+
+        $this->groupsToTags = [];
+        foreach (explode("\n", $this->configurationData) as $line) {
+            $separatorPos = strpos($line, ':');
+            if ($separatorPos === false) {
+                continue;
+            }
+            $group = trim(substr($line, 0, $separatorPos));
+            $title = trim(substr($line, $separatorPos + 1));
+            if (!empty($group) && !empty($title)) {
+                $this->groupsToTags[$group] = $title;
+            }
         }
 
         return $this->groupsToTags;
