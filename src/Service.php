@@ -215,6 +215,22 @@ class Service implements ServiceInterface
             $this->logger->error($e->getMessage(), ['exception' => $e]);
             throw new Exception();
         }
+
+        // Add/remove character from ban table
+        $banFilter = "character-$character->id";
+        if (in_array((int)($_ENV['NEUCORE_PLUGIN_MUMBLE_BANNED_GROUP'] ?? 0), $this->groupIds($groups))) {
+            $stmt = $this->pdo->prepare('INSERT IGNORE INTO ban (filter, reason_public) VALUES (:filter, :reason)');
+            $stmt->bindValue(':reason', 'banned');
+        } else {
+            $stmt = $this->pdo->prepare('DELETE FROM ban WHERE filter = :filter');
+        }
+        $stmt->bindValue(':filter', $banFilter);
+        try {
+            $stmt->execute();
+        } catch(\Exception $e) {
+            $this->logger->error($e->getMessage(), ['exception' => $e]);
+            throw new Exception();
+        }
     }
 
     public function updatePlayerAccount(CoreCharacter $mainCharacter, array $groups): void
@@ -304,11 +320,25 @@ class Service implements ServiceInterface
         }
     }
 
+    /**
+     * @param CoreGroup[] $groups
+     */
     private function groupNames(array $groups): string
     {
         return implode(',', array_map(function (CoreGroup $group) {
             return $group->name;
         }, $groups));
+    }
+
+    /**
+     * @param CoreGroup[] $groups
+     * @return int[]
+     */
+    private function groupIds(array $groups): array
+    {
+        return array_map(function (CoreGroup $group) {
+            return $group->identifier;
+        }, $groups);
     }
 
     /**
