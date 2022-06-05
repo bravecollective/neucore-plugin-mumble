@@ -376,29 +376,29 @@ class Service implements ServiceInterface
         string $corporationTicker = null
     ): string {
         $groupsArray = explode(',', $groups);
+        $pronouns = ['He/Him', 'She/Her', 'They/Them', 'He/They', 'She/They', 'Any Pronouns'];
 
         $pronoun = '';
-        $pronouns = ['He/Him', 'She/Her', 'They/Them', 'He/They', 'She/They', 'Any Pronouns'];
+        $ceo = '';
+        $appendix = $corporationTicker ? " [$corporationTicker]" : '';
+        $foundAppendix = false;
         foreach ($this->groupsToTags() as $group => $assignedTag) {
-            if (in_array($group, $groupsArray) && in_array($assignedTag, $pronouns)) {
+            if (!in_array($group, $groupsArray)) {
+                continue;
+            }
+            if ($assignedTag === 'CEO') {
+                $ceo = " (CEO)";
+            }
+            if (in_array($assignedTag, $pronouns)) {
                 $pronoun = " ($assignedTag)";
             }
-        }
-
-        $appendix = $corporationTicker ? " [$corporationTicker]" : '';
-        foreach ($this->groupsToTags() as $group => $assignedTag) {
-            if (in_array($group, $groupsArray) && !in_array($assignedTag, $pronouns)) {
-                if ($assignedTag === 'CEO') {
-                    $appendix .= " ($assignedTag)";
-                } else {
-                    $appendix = " ($assignedTag)";
-                }
-                // first one wins
-                break;
+            if (!$foundAppendix && $assignedTag !== 'CEO' && !in_array($assignedTag, $pronouns)) {
+                $appendix = " ($assignedTag)";
+                $foundAppendix = true; // first one wins
             }
         }
 
-        return $characterName . $pronoun . $appendix;
+        return $characterName . $pronoun . $ceo . $appendix;
     }
 
     private function randomString(): string
