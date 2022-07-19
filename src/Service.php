@@ -381,7 +381,7 @@ class Service implements ServiceInterface
         string $corporationTicker = null
     ): string {
         $groupsArray = explode(',', $groups);
-        $pronouns = ['He/Him', 'She/Her', 'They/Them', 'He/They', 'She/They', 'Any Pronouns'];
+        $pronouns = ['He/Him', 'She/He', 'She/Her', 'They/Them', 'He/They', 'She/They', 'Any Pronouns'];
 
         $pronoun = '';
         $ceo = '';
