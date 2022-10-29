@@ -80,7 +80,10 @@ class Service implements ServiceInterface
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
             $characterId = (int)$row['character_id'];
             $password = $row['mumble_password'];
-            if ($row['owner_hash'] !== $characterIdsOwnerHashes[$characterId]) {
+            if (
+                !empty($characterIdsOwnerHashes[$characterId]) &&
+                $row['owner_hash'] !== $characterIdsOwnerHashes[$characterId]
+            ) {
                 $password = $this->updateOwner($characterId, $characterIdsOwnerHashes[$characterId]);
             }
             $result[] = new ServiceAccountData($characterId, $row['mumble_username'], $password);
