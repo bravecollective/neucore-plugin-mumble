@@ -19,25 +19,13 @@ use Psr\Log\LoggerInterface;
 /** @noinspection PhpUnused */
 class Service implements ServiceInterface
 {
-    /**
-     * @var LoggerInterface
-     */
-    private $logger;
+    private LoggerInterface $logger;
 
-    /**
-     * @var string
-     */
-    private $configurationData;
+    private string $configurationData;
 
-    /**
-     * @var PDO|null
-     */
-    private $pdo;
+    private ?PDO $pdo = null;
 
-    /**
-     * @var array|null
-     */
-    private $groupsToTags;
+    private ?array $groupsToTags = null;
 
     public function __construct(LoggerInterface $logger, ServiceConfiguration $serviceConfiguration)
     {
@@ -287,6 +275,23 @@ class Service implements ServiceInterface
         return [];
     }
 
+    /**
+     * @throws Exception
+     */
+    public function request(
+        CoreCharacter $coreCharacter,
+        string $name,
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $groups
+    ): ResponseInterface {
+        throw new Exception();
+    }
+
+    public function onConfigurationChange(): void
+    {
+    }
+
     private function updateOwner(int $characterId, string $newOwnerHash): ?string
     {
         $password = $this->randomString();
@@ -417,7 +422,7 @@ class Service implements ServiceInterface
         for ($i = 0; $i < 10; $i++) {
             try {
                 $pass .= $characters[random_int(0, $max)];
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 $pass .= $characters[rand(0, $max)];
             }
         }
@@ -464,18 +469,5 @@ class Service implements ServiceInterface
         }
 
         return $this->groupsToTags;
-    }
-
-    /**
-     * @throws Exception
-     */
-    public function request(
-        CoreCharacter $coreCharacter,
-        string $name,
-        ServerRequestInterface $request,
-        ResponseInterface $response,
-        array $groups
-    ): ResponseInterface {
-        throw new Exception();
     }
 }
