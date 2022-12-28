@@ -1,0 +1,71 @@
+#file: noinspection YAMLSchemaValidation
+
+###
+### Required configuration
+###
+
+# A name for the plugin
+name: Mumble auth
+
+# Type of the plugin. The only possible value for now is "service".
+type: service
+
+# Full class name of class implementing Neucore\Plugin\ServiceInterface.
+phpClass: Brave\Neucore\Plugin\Mumble\Service
+
+# PHP namespace that should be loaded by the PSR-4 autoloader.
+psr4Prefix: Brave\Neucore\Plugin\Mumble
+
+# Relative (to this file) path to the directory containing the classes of the above namespace.
+psr4Path: src
+
+# Defines if this service allows only one account per player instead of one per character.
+oneAccount: false
+
+# List of available account properties, possible values: username, password, email, status, name
+properties:
+  - username
+  - password
+
+# If this is not enabled and the account contains a password (see properties), the user will be able to see
+# it only once after it is reset (see actions).
+showPassword: true
+
+# List of actions, possible values: update-account, reset-password
+actions:
+  - update-account
+  - reset-password
+
+
+###
+### Optional configuration
+###
+
+# List of link buttons. Placeholders for URL: {plugin_id}, {username}, {password}, {email}
+URLs:
+  -
+    url: https://www.mumble.info/
+    title: Download Mumble
+    target: _blank
+  -
+    url: mumble://{username}:{password}@mumble.bravecollective.com:64738/?version=1.3.0&title=Brave Collective Comms
+    title: Connect to Mumble
+    target: _self
+
+# Text above the list of accounts (supports multiline text).
+textTop:
+
+# Text below account table (supports multiline text).
+textAccount: |
+  Manual Configuration
+  Address: mumble.bravecollective.com
+  Port: 64738
+
+# Text below the registration form/button (supports multiline text).
+textRegister:
+
+# Text below an account with status "pending" (supports multiline text).
+textPending:
+
+# Additional configuration for the plugin (supports multiline text).
+configurationData:
