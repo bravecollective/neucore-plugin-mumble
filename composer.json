@@ -7,7 +7,7 @@
         "php": "^8.0",
         "ext-mbstring": "*",
         "ext-pdo": "*",
-        "tkhamez/neucore-plugin": "^0.9.2"
+        "tkhamez/neucore-plugin": "^0.10.0"
     },
     "config": {
         "platform": {
