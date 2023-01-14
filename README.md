@@ -1,5 +1,7 @@
 # neucore-plugin-mumble
 
+*Replaced with https://github.com/tkhamez/neucore-mumble-plugin.*
+
 ## Requirements
 
 - A [Neucore](https://github.com/bravecollective/neucore) installation.
